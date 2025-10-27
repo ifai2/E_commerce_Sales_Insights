@@ -194,7 +194,7 @@ if nav == "Insights":
 # =========================================
 if nav == "Results":
     st.subheader("📊 Analysis Results")
-    st.caption("Exploratory analysis of seller data and performance insights.")
+    st.caption("Exploratory analysis of seller data and model performance.")
     seller_data = load_seller_data()
 
     # Summary metrics
@@ -207,6 +207,14 @@ if nav == "Results":
     with col3:
         pct = seller_data['profitable'].mean() * 100
         st.metric("Profitability Rate", f"{pct:.1f}%")
+
+    # Revenue Distribution
+    st.markdown("### 💰 Seller Revenue Distribution")
+    fig1, ax1 = plt.subplots(figsize=(7,4))
+    sns.histplot(seller_data['total_revenue'], bins=40, kde=True, color='royalblue', ax=ax1)
+    ax1.set_xlabel("Total Revenue (BRL)")
+    ax1.set_ylabel("Number of Sellers")
+    st.pyplot(fig1)
 
     # Correlation Heatmap
     st.markdown("### 🔍 Correlation Heatmap")
@@ -223,44 +231,14 @@ if nav == "Results":
     ax3.set_ylabel('% Profitable Sellers')
     st.pyplot(fig3)
 
-    # Review Score vs Revenue
-    st.markdown("### ⭐ Review Score vs Total Revenue")
-    st.caption("Do higher customer ratings lead to higher revenue?")
-    fig4, ax4 = plt.subplots(figsize=(8,5))
-    sns.scatterplot(
-        data=seller_data,
-        x='avg_review_score',
-        y='total_revenue',
-        hue='profitable',
-        palette='coolwarm',
-        alpha=0.7,
-        ax=ax4
-    )
-    ax4.set_title("Average Review Score vs Total Revenue")
-    ax4.set_xlabel("Average Review Score")
-    ax4.set_ylabel("Total Revenue (BRL)")
+    # Seller Segments
+    st.markdown("### 🧩 Seller Segments by Performance")
+    seg_counts = seller_data['segment'].value_counts()
+    fig4, ax4 = plt.subplots(figsize=(7,4))
+    sns.barplot(x=seg_counts.index, y=seg_counts.values, palette='Set2', ax=ax4)
+    ax4.set_xlabel("Seller Segment")
+    ax4.set_ylabel("Number of Sellers")
     st.pyplot(fig4)
-
-    # 🔝 Top 5 Best Sellers (Table only)
-    st.markdown("### 🏆 Top 5 Best Sellers (by Total Revenue)")
-    top_5_sellers = seller_data.sort_values(by='total_revenue', ascending=False).head(5)
-    st.dataframe(top_5_sellers[['seller_id', 'seller_city', 'seller_state', 'total_revenue', 'total_orders', 'avg_review_score']])
-    top5_share = 100 * top_5_sellers['total_revenue'].sum() / seller_data['total_revenue'].sum()
-    st.caption(f"These top 5 sellers generate **{top5_share:.1f}%** of all platform revenue.")
-
-    # 🌟 Top 5 Best Rated Sellers (Table only)
-    st.markdown("### 🌟 Top 5 Best Rated Sellers")
-    top_5_rated = seller_data.sort_values(by='avg_review_score', ascending=False).head(5)
-    st.dataframe(top_5_rated[['seller_id', 'seller_city', 'seller_state', 'avg_review_score', 'total_revenue', 'total_orders']])
-    avg_revenue_rated = top_5_rated['total_revenue'].mean()
-    st.caption(f"Average revenue among top-rated sellers: **BRL {avg_revenue_rated:,.2f}**")
-
-    # ⚠️ Bottom 5 Sellers (Table only)
-    st.markdown("### ⚠️ Bottom 5 Sellers (Lowest Revenue)")
-    bottom_5 = seller_data.sort_values(by='total_revenue', ascending=True).head(5)
-    st.dataframe(bottom_5[['seller_id', 'seller_city', 'seller_state', 'total_revenue', 'avg_review_score', 'total_orders']])
-    avg_rating_bottom = bottom_5['avg_review_score'].mean()
-    st.caption(f"Average review score among bottom sellers: **{avg_rating_bottom:.2f}★**")
 
 # =========================================
 # About

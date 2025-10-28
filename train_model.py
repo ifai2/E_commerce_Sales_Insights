@@ -5,13 +5,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import shap
+import pickle
 
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, ConfusionMatrixDisplay
-import pickle
 
 # ------------------------------
 # Load Data
@@ -165,3 +166,23 @@ print(f"Median revenue: BRL {median_revenue:,.2f}")
 print("\nTop Features by Importance:")
 for feature, importance in zip(features, importances):
     print(f"{feature}: {importance:.3f}")
+
+# ------------------------------
+# Explainability (SHAP)
+# ------------------------------
+print("\nGenerating SHAP explanations...")
+explainer = shap.Explainer(rf, X_train)
+shap_values = explainer(X_test)
+
+# Summary Plot
+shap.summary_plot(shap_values, X_test, feature_names=features, show=True)
+
+# Mean Absolute SHAP Values
+mean_shap = np.abs(shap_values.values).mean(axis=0)
+shap_importance = pd.DataFrame({
+    'Feature': features,
+    'Mean_SHAP_Value': mean_shap
+}).sort_values(by='Mean_SHAP_Value', ascending=False)
+
+print("\nFeature Impact on Profitability (based on SHAP values):")
+print(shap_importance)

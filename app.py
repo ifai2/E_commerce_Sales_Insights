@@ -209,21 +209,6 @@ if nav == "Insights":
     else:
         st.info("Feature importance not available.")
 
-    st.markdown("### 🧠 SHAP Explainability")
-    st.caption("Understanding how each feature influences model predictions.")
-    try:
-        X = seller_data[features].sample(200, random_state=42)
-        explainer = shap.Explainer(est, X)
-        shap_values = explainer(X)
-        shap.summary_plot(shap_values, X, feature_names=features, show=False)
-        fig_shap = plt.gcf()
-        fig_shap.set_size_inches(6, 3.5)
-        plt.tight_layout(pad=0.4)
-        st.pyplot(fig_shap, use_container_width=True)
-        plt.clf()
-    except Exception as e:
-        st.warning(f"SHAP could not be displayed: {e}")
-
 # =========================================
 # PRODUCT RECOMMENDATION PAGE
 # =========================================
@@ -254,9 +239,6 @@ if nav == "Results":
         st.metric("Total Sellers", f"{len(seller_data):,}")
     with col2:
         st.metric("Profitable Sellers", f"{seller_data['profitable'].sum():,}")
-    with col3:
-        pct = seller_data['profitable'].mean() * 100
-        st.metric("Profitability Rate", f"{pct:.1f}%")
 
     st.markdown("### 🔍 Correlation Heatmap")
     corr = seller_data[['total_orders','total_products_sold','avg_price','avg_freight','avg_review_score','total_revenue']].corr()
@@ -271,6 +253,89 @@ if nav == "Results":
     top_states.plot(kind='bar', color='seagreen', ax=ax3)
     plt.tight_layout(pad=0.4)
     st.pyplot(fig3, use_container_width=True)
+
+    st.markdown("### 🏙️ Top 10 States with At Least 150 Sellers")
+    # Group by seller_state and count the number of sellers in each state
+    states_with_sellers_count = seller_data.groupby('seller_state').size()
+
+    # Filter states that have at least 150 sellers
+    states_with_150_sellers = states_with_sellers_count[states_with_sellers_count >= 150]
+
+    # Get the top 10 states with the most sellers
+    top_10_states = states_with_150_sellers.sort_values(ascending=False).head(10)
+
+    # Plot the bar chart
+    fig5, ax5 = plt.subplots(figsize=(8, 5))
+    top_10_states.plot(kind='bar', color='seagreen', ax=ax5)
+    ax5.set_title('Top 10 States with At Least 150 Sellers')
+    ax5.set_ylabel('Number of Sellers')
+    st.pyplot(fig5, use_container_width=True)
+
+    st.markdown("### 📉 Bottom 5 Sellers by Total Revenue")
+    # Sort sellers by lowest total revenue
+    bottom_5_sellers = seller_data.sort_values(by='total_revenue', ascending=True).head(5)
+
+    # Display the table
+    st.write("📉 Bottom 5 Sellers (by Total Revenue):")
+    st.dataframe(bottom_5_sellers[['seller_id', 'seller_city', 'seller_state', 'total_revenue', 'total_orders', 'avg_review_score']])
+
+    # Calculate their share of total revenue
+    bottom5_share = 100 * bottom_5_sellers['total_revenue'].sum() / seller_data['total_revenue'].sum()
+    avg_rating_bottom5 = bottom_5_sellers['avg_review_score'].mean()
+    bottom_state = bottom_5_sellers['seller_state'].mode()[0]
+
+    st.markdown(f"These bottom 5 sellers generate {bottom5_share:.1f}% of all platform revenue.")
+    st.markdown(f"Average customer rating among bottom sellers: {avg_rating_bottom5:.2f}★")
+    st.markdown(f"Most common seller state among them: {bottom_state}")
+
+    # Visualization — horizontal bar chart
+    fig6, ax6 = plt.subplots(figsize=(8, 5))
+    sns.barplot(
+        data=bottom_5_sellers,
+        y='seller_id',
+        x='total_revenue',
+        hue='seller_state',
+        dodge=False,
+        palette='coolwarm',
+        ax=ax6
+    )
+    ax6.set_title('Bottom 5 Sellers by Total Revenue')
+    ax6.set_xlabel('Total Revenue (BRL)')
+    ax6.set_ylabel('Seller ID')
+    st.pyplot(fig6, use_container_width=True)
+
+    st.markdown("### 🏆 Top 5 Sellers by Total Revenue")
+    # Sort by revenue and take top 5
+    top_5_sellers = seller_data.sort_values(by='total_revenue', ascending=False).head(5)
+
+    # Display the table
+    st.write("🏆 Top 5 Best Sellers (by Total Revenue):")
+    st.dataframe(top_5_sellers[['seller_id', 'seller_city', 'seller_state', 'total_revenue', 'total_orders', 'avg_review_score']])
+
+    # Calculate their share of total revenue
+    top5_share = 100 * top_5_sellers['total_revenue'].sum() / seller_data['total_revenue'].sum()
+    avg_rating_top5 = top_5_sellers['avg_review_score'].mean()
+    top_state = top_5_sellers['seller_state'].mode()[0]
+
+    st.markdown(f"These top 5 sellers generate {top5_share:.1f}% of all platform revenue.")
+    st.markdown(f"Average customer rating among top sellers: {avg_rating_top5:.2f}★")
+    st.markdown(f"Most common seller state among them: {top_state}")
+
+    # Visualization — horizontal bar chart
+    fig7, ax7 = plt.subplots(figsize=(8, 5))
+    sns.barplot(
+        data=top_5_sellers,
+        y='seller_id',
+        x='total_revenue',
+        hue='seller_state',
+        dodge=False,
+        palette='viridis',
+        ax=ax7
+    )
+    ax7.set_title('Top 5 Sellers by Total Revenue')
+    ax7.set_xlabel('Total Revenue (BRL)')
+    ax7.set_ylabel('Seller ID')
+    st.pyplot(fig7, use_container_width=True)
 
     st.markdown("### ⭐ Review Score vs Total Revenue")
     fig4, ax4 = plt.subplots(figsize=(6, 3.5))

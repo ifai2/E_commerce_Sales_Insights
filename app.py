@@ -1,3 +1,6 @@
+# =========================================
+# app.py — Final Integrated Version
+# =========================================
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,7 +11,7 @@ import seaborn as sns
 from pathlib import Path
 from typing import Tuple
 from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.neighbors import NearestNeighbors
+from recommendation_system import recommend_similar_products  # NEW IMPORT
 
 # =========================================
 # PAGE CONFIG
@@ -16,7 +19,7 @@ from sklearn.neighbors import NearestNeighbors
 st.set_page_config(
     page_title="E-commerce Sales Insights • Profitability",
     page_icon="💹",
-    layout="centered",  # Ensures the content is centered
+    layout="centered",
     initial_sidebar_state="expanded",
 )
 
@@ -24,10 +27,9 @@ st.set_page_config(
 # THEME — Light Mode
 # =========================================
 PRIMARY_GREEN = "#0f9d58"
-SUBTLE_GOLD  = "#e3c76a"
-SOFT_BG      = "#f8f9fa"  # Light background
+SUBTLE_GOLD = "#e3c76a"
+SOFT_BG = "#f8f9fa"
 
-# Add custom light mode CSS and center alignment
 st.markdown(
     f"""
     <style>
@@ -45,7 +47,7 @@ st.markdown(
         }}
         .stApp {{
             width: 100%;
-            max-width: 1200px;  /* Adjust the max-width to control content width */
+            max-width: 1200px;
             margin: 0 auto;
         }}
         .banner {{
@@ -67,16 +69,12 @@ st.markdown(
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             margin-bottom: 0.8rem;
             width: 100%;
-            max-width: 900px;  /* To control the width */
+            max-width: 900px;
             margin-left: auto;
             margin-right: auto;
         }}
-        .profit {{
-            background: rgba(15,157,88,0.12);
-        }}
-        .notprofit {{
-            background: rgba(217,83,79,0.12);
-        }}
+        .profit {{ background: rgba(15,157,88,0.12); }}
+        .notprofit {{ background: rgba(217,83,79,0.12); }}
         .block-container {{
             padding-top: 1rem;
             padding-bottom: 1rem;
@@ -85,12 +83,8 @@ st.markdown(
             align-items: center;
             flex-direction: column;
         }}
-        .stSlider .st-bu {{
-            color: #333333;
-        }}
-        .stMetric, .stTable {{
-            text-align: center;  /* Center-align the metrics and tables */
-        }}
+        .stSlider .st-bu {{ color: #333333; }}
+        .stMetric, .stTable {{ text-align: center; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -128,6 +122,9 @@ def load_product_data():
         st.stop()
     return pd.read_csv(path)
 
+# =========================================
+# PREDICT FUNCTION
+# =========================================
 def predict_proba(model, X: pd.DataFrame) -> Tuple[int, float]:
     if hasattr(model, "predict_proba"):
         y = model.predict(X)
@@ -190,7 +187,7 @@ if nav == "Predict":
         st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================================
-# INSIGHTS PAGE — with SHAP explainability
+# INSIGHTS PAGE
 # =========================================
 if nav == "Insights":
     st.subheader("Feature Importance & Explainability")
@@ -200,7 +197,6 @@ if nav == "Insights":
     seller_data = load_seller_data()
     est = getattr(model, "named_steps", {}).get("clf", model)
 
-    # --- Feature Importance ---
     if hasattr(est, "feature_importances_"):
         importances = np.array(est.feature_importances_, dtype=float)
         order = np.argsort(importances)[::-1]
@@ -213,7 +209,6 @@ if nav == "Insights":
     else:
         st.info("Feature importance not available.")
 
-    # --- SHAP Explainability ---
     st.markdown("### 🧠 SHAP Explainability")
     st.caption("Understanding how each feature influences model predictions.")
     try:
@@ -234,28 +229,26 @@ if nav == "Insights":
 # =========================================
 if nav == "Product Recommendation":
     st.subheader("Get Product Recommendations")
-    st.caption("Enter your Seller ID to get personalized product recommendations.")
+    st.caption("Enter a Product ID to see similar items.")
 
-    seller_id = st.text_input("Enter your Seller ID", "")
+    product_id = st.text_input("Enter Product ID", "")
 
-    if seller_id:
-        # Assuming 'recommend_products' is a function you define based on customer behavior or purchases
+    if product_id:
         try:
-            recommended_products = recommend_products(seller_id)
-            st.write("### Recommended Products:")
-            st.dataframe(recommended_products[['product_id', 'product_category', 'avg_price', 'total_sales']])
+            recs = recommend_similar_products(product_id, top_n=5)
+            st.success("✅ Similar products found:")
+            st.dataframe(recs, height=200)
         except Exception as e:
             st.error(f"Error: {e}")
 
 # =========================================
-# RESULTS PAGE — with Model Evaluation + Recommendations
+# RESULTS PAGE
 # =========================================
 if nav == "Results":
     st.subheader("📊 Analysis Results")
     st.caption("Exploratory analysis of seller data and model performance.")
     seller_data = load_seller_data()
 
-    # Summary metrics
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Total Sellers", f"{len(seller_data):,}")
@@ -265,122 +258,25 @@ if nav == "Results":
         pct = seller_data['profitable'].mean() * 100
         st.metric("Profitability Rate", f"{pct:.1f}%")
 
-    # --- Correlation Heatmap ---
     st.markdown("### 🔍 Correlation Heatmap")
     corr = seller_data[['total_orders','total_products_sold','avg_price','avg_freight','avg_review_score','total_revenue']].corr()
     fig2, ax2 = plt.subplots(figsize=(6, 3.5))
     sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f', ax=ax2, annot_kws={"size":8})
-    ax2.tick_params(axis='x', labelsize=8)
-    ax2.tick_params(axis='y', labelsize=8)
     plt.tight_layout(pad=0.5)
     st.pyplot(fig2, use_container_width=True)
 
-    # --- Top States ---
     st.markdown("### 🌎 Top 10 States by Profitability")
     top_states = seller_data.groupby('seller_state')['profitable'].mean().sort_values(ascending=False).head(10)
     fig3, ax3 = plt.subplots(figsize=(6, 3.5))
     top_states.plot(kind='bar', color='seagreen', ax=ax3)
-    ax3.set_ylabel('% Profitable Sellers', fontsize=9)
-    ax3.tick_params(axis='x', labelrotation=30, labelsize=8)
-    ax3.tick_params(axis='y', labelsize=8)
     plt.tight_layout(pad=0.4)
     st.pyplot(fig3, use_container_width=True)
 
-    # --- Scatter Plot ---
     st.markdown("### ⭐ Review Score vs Total Revenue")
     fig4, ax4 = plt.subplots(figsize=(6, 3.5))
-    sns.scatterplot(
-        data=seller_data,
-        x='avg_review_score',
-        y='total_revenue',
-        hue='profitable',
-        palette='coolwarm',
-        alpha=0.6,
-        s=25,
-        ax=ax4
-    )
-    ax4.set_xlabel("Average Review Score", fontsize=9)
-    ax4.set_ylabel("Total Revenue (BRL)", fontsize=9)
-    ax4.legend(fontsize=8, title_fontsize=8, loc="upper right")
+    sns.scatterplot(data=seller_data, x='avg_review_score', y='total_revenue', hue='profitable', palette='coolwarm', alpha=0.6, s=25, ax=ax4)
     plt.tight_layout(pad=0.5)
     st.pyplot(fig4, use_container_width=True)
-
-    # --- Tables ---
-    st.markdown("### 🏆 Top 5 Best Sellers (by Total Revenue)")
-    top_5_sellers = seller_data.sort_values(by='total_revenue', ascending=False).head(5)
-    st.dataframe(top_5_sellers[['seller_id','seller_city','seller_state','total_revenue','total_orders','avg_review_score']], height=130)
-    top5_share = 100 * top_5_sellers['total_revenue'].sum() / seller_data['total_revenue'].sum()
-    st.caption(f"These top 5 sellers generate **{top5_share:.1f}%** of all platform revenue.")
-
-    st.markdown("### 🌟 Top 5 Best Rated Sellers")
-    top_5_rated = seller_data.sort_values(by='avg_review_score', ascending=False).head(5)
-    st.dataframe(top_5_rated[['seller_id','seller_city','seller_state','avg_review_score','total_revenue','total_orders']], height=130)
-
-    st.markdown("### ⚠️ Bottom 5 Sellers (Lowest Revenue)")
-    bottom_5 = seller_data.sort_values(by='total_revenue', ascending=True).head(5)
-    st.dataframe(bottom_5[['seller_id','seller_city','seller_state','total_revenue','avg_review_score','total_orders']], height=130)
-
-    # --- Model Evaluation ---
-    st.markdown("### 🧩 Model Evaluation & Insights")
-    features = ["total_orders", "total_products_sold", "avg_price", "avg_freight", "avg_review_score"]
-    X = seller_data[features]
-    y_true = seller_data["profitable"]
-    y_pred = model.predict(X)
-    acc = accuracy_score(y_true, y_pred)
-    cm = confusion_matrix(y_true, y_pred)
-
-    st.metric("Model Accuracy", f"{acc*100:.2f}%")
-    fig_cm, ax_cm = plt.subplots(figsize=(5.5, 3.2))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Greens", cbar=False, ax=ax_cm)
-    ax_cm.set_xlabel("Predicted Label", fontsize=9)
-    ax_cm.set_ylabel("True Label", fontsize=9)
-    plt.tight_layout(pad=0.5)
-    st.pyplot(fig_cm, use_container_width=True)
-
-    if acc >= 0.85:
-        verdict = "✅ The model is excellent — it predicts seller profitability accurately and consistently."
-    elif acc >= 0.75:
-        verdict = "👍 The model is good — reliable for most practical uses, with room for improvement."
-    else:
-        verdict = "⚠️ The model is weak — accuracy is below expectations, further tuning needed."
-
-    st.info(verdict)
-
-    st.markdown(
-        """
-        **Interpretation Summary**
-        - The model mainly relies on `avg_review_score`, `total_orders`, and `total_products_sold`.
-        - Weak SHAP interaction values indicate independent and simple relationships — acceptable for business data.
-        - Overall: high performance, stability, and interpretability.
-        """
-    )
-
-    # =========================================
-    # 💡 Business Recommendations — Visual Cards
-    # =========================================
-    st.markdown("## 💡 Recommendations Summary")
-
-    cols = st.columns(4)
-
-    with cols[0]:
-        st.markdown("### 🤝")
-        st.markdown("**Improve Reviews**")
-        st.caption("Enhance customer support and feedback quality.")
-
-    with cols[1]:
-        st.markdown("### 🚚")
-        st.markdown("**Optimize Logistics**")
-        st.caption("Reduce freight costs in low-profit regions.")
-
-    with cols[2]:
-        st.markdown("### 📈")
-        st.markdown("**Focus on High-Performing States**")
-        st.caption("Target marketing and expansion where sellers perform best.")
-
-    with cols[3]:
-        st.markdown("### 🧠")
-        st.markdown("**Leverage Model Insights**")
-        st.caption("Detect at-risk or high-potential sellers early.")
 
 # =========================================
 # ABOUT PAGE
@@ -391,10 +287,9 @@ if nav == "About":
         """
         **E-commerce Sales Insights**
         - Predicts seller profitability using Random Forest
-        - Adds SHAP explainability for feature influence
-        - Includes automatic model performance evaluation
-        - Shows Top & Bottom performing sellers
-        - Balanced visuals and optimized layout
+        - Explains decisions with SHAP
+        - Analyzes performance across states and sellers
+        - Suggests similar products with a content-based recommender
         - Dataset currency: **BRL (Brazilian Real)**
         - Built with ❤️ using Streamlit
         """

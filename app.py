@@ -1,5 +1,5 @@
 # =========================================
-# app.py — Final Integrated Version
+# app.py — Final Integrated Version (with ngrok for Deployment)
 # =========================================
 import streamlit as st
 import pandas as pd
@@ -12,6 +12,19 @@ from pathlib import Path
 from typing import Tuple
 from sklearn.metrics import accuracy_score, confusion_matrix
 from recommendation_system import recommend_similar_products  # NEW IMPORT
+
+# ✅ ngrok import
+from pyngrok import ngrok
+
+# =========================================
+# CONNECT NGROK — for Public Deployment
+# =========================================
+try:
+    # Connect ngrok tunnel to port 8501 (Streamlit default)
+    public_url = ngrok.connect(8501)
+    print(f"🌍 Public URL: {public_url}")
+except Exception as e:
+    print(f"⚠️ Ngrok not connected: {e}")
 
 # =========================================
 # PAGE CONFIG
@@ -38,12 +51,6 @@ st.markdown(
             background-color: {SOFT_BG};
             color: #333333;
             font-size: 14px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            margin: 0;
-            height: 100vh;
-            overflow: hidden;
         }}
         .stApp {{
             width: 100%;
@@ -75,16 +82,6 @@ st.markdown(
         }}
         .profit {{ background: rgba(15,157,88,0.12); }}
         .notprofit {{ background: rgba(217,83,79,0.12); }}
-        .block-container {{
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-        }}
-        .stSlider .st-bu {{ color: #333333; }}
-        .stMetric, .stTable {{ text-align: center; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -145,7 +142,7 @@ with st.sidebar:
 # HEADER
 # =========================================
 st.title("💹 E-commerce Sales Insights — Seller Profitability")
-st.markdown('<div class="banner">Profit intelligence for e-commerce sellers ⚡</div>', unsafe_allow_html=True)
+st.markdown('<div class="banner">Profit intelligence for e-commerce sellers ⚡️</div>', unsafe_allow_html=True)
 
 # =========================================
 # PREDICT PAGE
@@ -254,17 +251,10 @@ if nav == "Results":
     plt.tight_layout(pad=0.4)
     st.pyplot(fig3, use_container_width=True)
 
-    st.markdown("### 🏙️ Top 10 States with At Least 150 Sellers")
-    # Group by seller_state and count the number of sellers in each state
+    st.markdown("### 🏙 Top 10 States with At Least 150 Sellers")
     states_with_sellers_count = seller_data.groupby('seller_state').size()
-
-    # Filter states that have at least 150 sellers
     states_with_150_sellers = states_with_sellers_count[states_with_sellers_count >= 150]
-
-    # Get the top 10 states with the most sellers
     top_10_states = states_with_150_sellers.sort_values(ascending=False).head(10)
-
-    # Plot the bar chart
     fig5, ax5 = plt.subplots(figsize=(8, 5))
     top_10_states.plot(kind='bar', color='seagreen', ax=ax5)
     ax5.set_title('Top 10 States with At Least 150 Sellers')
@@ -272,75 +262,34 @@ if nav == "Results":
     st.pyplot(fig5, use_container_width=True)
 
     st.markdown("### 📉 Bottom 5 Sellers by Total Revenue")
-    # Sort sellers by lowest total revenue
     bottom_5_sellers = seller_data.sort_values(by='total_revenue', ascending=True).head(5)
-
-    # Display the table
-    st.write("📉 Bottom 5 Sellers (by Total Revenue):")
-    st.dataframe(bottom_5_sellers[['seller_id', 'seller_city', 'seller_state', 'total_revenue', 'total_orders', 'avg_review_score']])
-
-    # Calculate their share of total revenue
+    st.dataframe(bottom_5_sellers[['seller_id','seller_city','seller_state','total_revenue','total_orders','avg_review_score']])
     bottom5_share = 100 * bottom_5_sellers['total_revenue'].sum() / seller_data['total_revenue'].sum()
     avg_rating_bottom5 = bottom_5_sellers['avg_review_score'].mean()
     bottom_state = bottom_5_sellers['seller_state'].mode()[0]
-
     st.markdown(f"These bottom 5 sellers generate {bottom5_share:.1f}% of all platform revenue.")
-    st.markdown(f"Average customer rating among bottom sellers: {avg_rating_bottom5:.2f}★")
-    st.markdown(f"Most common seller state among them: {bottom_state}")
-
-    # Visualization — horizontal bar chart
+    st.markdown(f"Average customer rating: {avg_rating_bottom5:.2f}★")
+    st.markdown(f"Most common seller state: {bottom_state}")
     fig6, ax6 = plt.subplots(figsize=(8, 5))
-    sns.barplot(
-        data=bottom_5_sellers,
-        y='seller_id',
-        x='total_revenue',
-        hue='seller_state',
-        dodge=False,
-        palette='coolwarm',
-        ax=ax6
-    )
-    ax6.set_title('Bottom 5 Sellers by Total Revenue')
-    ax6.set_xlabel('Total Revenue (BRL)')
-    ax6.set_ylabel('Seller ID')
+    sns.barplot(data=bottom_5_sellers, y='seller_id', x='total_revenue', hue='seller_state', dodge=False, palette='coolwarm', ax=ax6)
     st.pyplot(fig6, use_container_width=True)
 
     st.markdown("### 🏆 Top 5 Sellers by Total Revenue")
-    # Sort by revenue and take top 5
     top_5_sellers = seller_data.sort_values(by='total_revenue', ascending=False).head(5)
-
-    # Display the table
-    st.write("🏆 Top 5 Best Sellers (by Total Revenue):")
-    st.dataframe(top_5_sellers[['seller_id', 'seller_city', 'seller_state', 'total_revenue', 'total_orders', 'avg_review_score']])
-
-    # Calculate their share of total revenue
+    st.dataframe(top_5_sellers[['seller_id','seller_city','seller_state','total_revenue','total_orders','avg_review_score']])
     top5_share = 100 * top_5_sellers['total_revenue'].sum() / seller_data['total_revenue'].sum()
     avg_rating_top5 = top_5_sellers['avg_review_score'].mean()
     top_state = top_5_sellers['seller_state'].mode()[0]
-
     st.markdown(f"These top 5 sellers generate {top5_share:.1f}% of all platform revenue.")
-    st.markdown(f"Average customer rating among top sellers: {avg_rating_top5:.2f}★")
-    st.markdown(f"Most common seller state among them: {top_state}")
-
-    # Visualization — horizontal bar chart
+    st.markdown(f"Average rating: {avg_rating_top5:.2f}★")
+    st.markdown(f"Most common seller state: {top_state}")
     fig7, ax7 = plt.subplots(figsize=(8, 5))
-    sns.barplot(
-        data=top_5_sellers,
-        y='seller_id',
-        x='total_revenue',
-        hue='seller_state',
-        dodge=False,
-        palette='viridis',
-        ax=ax7
-    )
-    ax7.set_title('Top 5 Sellers by Total Revenue')
-    ax7.set_xlabel('Total Revenue (BRL)')
-    ax7.set_ylabel('Seller ID')
+    sns.barplot(data=top_5_sellers, y='seller_id', x='total_revenue', hue='seller_state', dodge=False, palette='viridis', ax=ax7)
     st.pyplot(fig7, use_container_width=True)
 
-    st.markdown("### ⭐ Review Score vs Total Revenue")
+    st.markdown("### ⭐️ Review Score vs Total Revenue")
     fig4, ax4 = plt.subplots(figsize=(6, 3.5))
     sns.scatterplot(data=seller_data, x='avg_review_score', y='total_revenue', hue='profitable', palette='coolwarm', alpha=0.6, s=25, ax=ax4)
-    plt.tight_layout(pad=0.5)
     st.pyplot(fig4, use_container_width=True)
 
 # =========================================
@@ -348,14 +297,11 @@ if nav == "Results":
 # =========================================
 if nav == "About":
     st.subheader("About this App")
-    st.markdown(
-        """
-        **E-commerce Sales Insights**
+    st.markdown("""
+        E-commerce Sales Insights
         - Predicts seller profitability using Random Forest
         - Explains decisions with SHAP
         - Analyzes performance across states and sellers
-        - Suggests similar products with a content-based recommender
-        - Dataset currency: **BRL (Brazilian Real)**
+        - Suggests similar products with a recommender
         - Built with ❤️ using Streamlit
-        """
-    )
+    """)
